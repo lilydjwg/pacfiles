@@ -1,85 +1,11 @@
 use std::path::Path;
-use std::ffi::OsStr;
 use std::fs::File;
 use std::io::BufReader;
 use std::mem::swap;
 
-use tracing::debug;
 use eyre::Result;
-use rusqlite::Connection;
 
-fn convert_files_one(files: &Path, repo: &str, db: &mut Connection) -> Result<()> {
-  let it = FilesReader::new(files)?;
-
-  db.execute("DELETE FROM files WHERE repo = ?1", [repo])?;
-
-  let mut stmt = db.prepare(r"
-  INSERT INTO files
-  (repo, pkgname, path)
-  VALUES (?1, ?2, ?3)
-  ")?;
-
-  for item in it {
-    let (pkgname, filelist) = item?;
-    for file in filelist.split('\n').skip(1) {
-      if file == "" { // eof
-        break;
-      }
-      stmt.execute(&[repo, &pkgname, file])?;
-    }
-  }
-
-  Ok(())
-}
-
-fn may_convert_files_one(files: &Path, db: &mut Connection) -> Result<()> {
-  let file_mtime = files.metadata()?.modified()?;
-  let file_mtime = file_mtime.duration_since(std::time::UNIX_EPOCH)?.as_secs();
-  let repo = files.file_stem().unwrap().to_str().unwrap();
-
-  let last_mtime: Option<u64> = {
-    let mut stmt = db.prepare("SELECT mtime FROM repoinfo WHERE repo = ?1")?;
-    let x = stmt.query([repo])?.next()?.map(|x| x.get_unwrap(0));
-    x
-  };
-
-  if last_mtime.is_some() && file_mtime <= last_mtime.unwrap() {
-    debug!(repo=?repo, "fresh");
-    Ok(())
-  } else {
-    debug!(repo=?repo, "converting");
-    // prepare & transaction don't work together
-    // https://github.com/rusqlite/rusqlite/issues/508
-    db.execute_batch("BEGIN")?;
-    let r = convert_files_one(files, repo, db);
-    if r.is_err() {
-      db.execute_batch("ROLLBACK")?;
-    } else {
-      if last_mtime.is_some() {
-        db.execute("UPDATE repoinfo SET mtime = ?1 WHERE repo = ?2", (file_mtime, repo))?;
-      } else {
-        db.execute("INSERT INTO repoinfo (mtime, repo) VALUES (?1, ?2)",
-        (file_mtime, repo))?;
-      }
-      db.execute_batch("COMMIT")?;
-    }
-    r
-  }
-}
-
-pub fn may_convert_files<P: AsRef<Path>>(dir: P, db: &mut Connection) -> Result<()> {
-  for entry in std::fs::read_dir(dir)? {
-    let entry = entry?;
-    let path = entry.path();
-    if path.extension() == Some(OsStr::new("files")) {
-      may_convert_files_one(&path, db)?;
-    }
-  }
-
-  Ok(())
-}
-
-struct FilesReader {
+pub struct FilesReader {
   ai: compress_tools::ArchiveIterator<BufReader<File>>,
   buffer: Vec<u8>,
   is_desc: bool,
@@ -89,7 +15,7 @@ struct FilesReader {
 }
 
 impl FilesReader {
-  fn new(files: &Path) -> Result<Self> {
+  pub fn new(files: &Path) -> Result<Self> {
     let f = File::open(files)?;
     let f = BufReader::new(f);
     Ok(Self {
@@ -180,5 +106,31 @@ impl Iterator for FilesReader {
       }
     }
     None
+  }
+}
+
+pub struct FilesIter<'a> {
+  files: std::str::Split<'a, char>,
+}
+
+impl<'a> FilesIter<'a> {
+  pub fn new(s: &'a str) -> Self {
+    let mut sp = s.split('\n');
+    let _ = sp.next();
+    Self {
+      files: sp,
+    }
+  }
+}
+
+impl<'a> Iterator for FilesIter<'a> {
+  type Item = &'a str;
+
+  fn next(&mut self) -> Option<Self::Item> {
+    match self.files.next() {
+      Some("") => None,
+      Some(f) => Some(f),
+      None => None,
+    }
   }
 }

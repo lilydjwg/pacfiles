@@ -1,19 +1,15 @@
-use std::path::Path;
 use std::io::IsTerminal;
+use std::ffi::OsStr;
 
 use tracing_subscriber::EnvFilter;
-use rusqlite::{Connection, Error};
-use expanduser::expanduser;
 use clap::Parser;
 
-mod convert;
+mod files;
+mod list;
+mod query_files;
 
 #[derive(clap::Parser)]
 struct Args {
-  #[arg(long, default_value="~/.cache/pacfiles/pacfiles.db")]
-  /// The converted database path.
-  mydbpath: String,
-
   #[arg(short, long)]
   /// List the files owned by the queried package.
   list: bool,
@@ -26,6 +22,8 @@ struct Args {
   /// the query
   queries: Vec<String>,
 }
+
+type Matcher = dyn Fn(&str) -> bool;
 
 fn main() -> eyre::Result<()> {
   let filter = EnvFilter::try_from_default_env()
@@ -43,63 +41,37 @@ fn main() -> eyre::Result<()> {
 
   let args = Args::parse();
 
-  let path = expanduser(args.mydbpath)?;
-  let mut db = setup_db(&path, args.regex)?;
+  let matcher = if args.regex {
+    let regex = regex::RegexSet::new(&args.queries)?;
+    Box::new(move |file: &str| regex.is_match(file)) as Box<Matcher>
+  } else {
+    let queries = args.queries.clone();
+    Box::new(move |file: &str| {
+      queries.iter().any(|pat|
+        if file.ends_with(pat) {
+          let pos = file.len() - pat.len();
+          pos >= 1 && &file[pos-1..pos] == "/"
+        } else { false }
+      )
+    })
+  };
 
-  convert::may_convert_files("/var/lib/pacman/sync", &mut db)?;
+  // FIXME: pacman.conf order
+  for entry in std::fs::read_dir("/var/lib/pacman/sync")? {
+    let entry = entry?;
+    let path = entry.path();
+    if path.extension() != Some(OsStr::new("files")) {
+      continue;
+    }
+    let repo = path.file_stem().unwrap().to_str().unwrap();
+
+    if args.list {
+      list::list_packages(&path, repo, &args.queries)?;
+    } else {
+      query_files::query_files(&path, repo, &matcher)?;
+    }
+  }
+
   Ok(())
 }
 
-fn setup_db(path: &Path, need_regexp: bool) -> eyre::Result<Connection> {
-  if let Some(p) = path.parent() {
-    std::fs::create_dir_all(p)?;
-  }
-  let db = Connection::open(path)?;
-  if need_regexp {
-    add_regexp_function(&db)?;
-  }
-
-  db.execute_batch(r"
-  CREATE TABLE IF NOT EXISTS repoinfo (
-    repo TEXT PRIMARY KEY,
-    mtime INTEGER NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS files (
-    repo TEXT NOT NULL,
-    pkgname TEXT NOT NULL,
-    path TEXT NOT NULL
-  );
-  ")?;
-
-  Ok(db)
-}
-
-fn add_regexp_function(db: &Connection) -> Result<(), Error> {
-  use regex::Regex;
-  use rusqlite::functions::FunctionFlags;
-  use std::sync::Arc;
-  type BoxError = Box<dyn std::error::Error + Send + Sync + 'static>;
-
-  db.create_scalar_function(
-    "regexp",
-    2,
-    FunctionFlags::SQLITE_UTF8 | FunctionFlags::SQLITE_DETERMINISTIC,
-    move |ctx| {
-      assert_eq!(ctx.len(), 2, "called with unexpected number of arguments");
-      let regexp: Arc<Regex> = ctx.get_or_create_aux(0, |vr| -> Result<_, BoxError> {
-        Ok(Regex::new(vr.as_str()?)?)
-      })?;
-      let is_match = {
-        let text = ctx
-          .get_raw(1)
-          .as_str()
-          .map_err(|e| Error::UserFunctionError(e.into()))?;
-
-          regexp.is_match(text)
-      };
-
-      Ok(is_match)
-    },
-  )
-}
