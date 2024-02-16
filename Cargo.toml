@@ -1,0 +1,16 @@
+[package]
+name = "pacfiles"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = { version = "4.5.0", features = ["derive"] }
+compress-tools = "0.14.3"
+expanduser = "1.2.2"
+eyre = "0.6.12"
+regex = { version = "1.10.3", default-features = false, features = ["std", "perf", "unicode"] }
+rusqlite = { version = "0.30.0", default-features = false, features = ["functions"] }
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", default-features = false, features = ["env-filter", "fmt", "ansi"] }
