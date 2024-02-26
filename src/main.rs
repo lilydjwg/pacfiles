@@ -23,7 +23,7 @@ struct Args {
   queries: Vec<String>,
 }
 
-type Matcher = dyn Fn(&str) -> bool;
+type Matcher = dyn Fn(&str) -> bool + Send + Sync;
 
 fn main() -> eyre::Result<()> {
   let filter = EnvFilter::try_from_default_env()
@@ -57,20 +57,38 @@ fn main() -> eyre::Result<()> {
   };
 
   // FIXME: pacman.conf order
-  for entry in std::fs::read_dir("/var/lib/pacman/sync")? {
-    let entry = entry?;
+  use std::path::PathBuf;
+  use append_only_vec::AppendOnlyVec;
+  // FIXME: choose pool size
+  let pool = scoped_thread_pool::Pool::new(16);
+  let paths = AppendOnlyVec::<PathBuf>::new();
+  pool.scoped(|scope| {
+
+  for entry in std::fs::read_dir("/var/lib/pacman/sync").unwrap() {
+    let entry = entry.unwrap();
     let path = entry.path();
+
     if path.extension() != Some(OsStr::new("files")) {
       continue;
     }
-    let repo = path.file_stem().unwrap().to_str().unwrap();
 
-    if args.list {
-      list::list_packages(&path, repo, &args.queries)?;
-    } else {
-      query_files::query_files(&path, repo, &matcher)?;
-    }
+    let path = {
+      let n = paths.push(path);
+      &paths[n]
+    };
+    let args = &args;
+    let matcher = &matcher;
+    scope.recurse(move |scope| {
+      let repo = path.file_stem().unwrap().to_str().unwrap();
+      if args.list {
+        list::list_packages(path, repo, &args.queries).unwrap();
+      } else {
+        query_files::query_files(path, repo, matcher, scope).unwrap();
+      }
+    });
   }
+
+  });
 
   Ok(())
 }
