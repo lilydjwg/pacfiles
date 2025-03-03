@@ -1,0 +1,7 @@
+* query
+  * exact filename search
+  * substring search in filenames
+  * substring search in whole paths
+  * regex search in filenames
+  * regex search in whole paths
+  * list package files
