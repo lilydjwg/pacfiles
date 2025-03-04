@@ -41,17 +41,25 @@ fn query_files_regex(
   installed: &InstalledPackages,
 ) -> IoResult<()> {
   let mut stdout = stdout().lock();
+  let mut found = false;
   files::foreach_database(|path| {
     let plocate = files::Plocate::new(&path, pattern, true, !pattern.contains('/'))?;
-    output_plocate(
+    found = output_plocate(
       &mut stdout,
       plocate,
       Path::new(&path).file_stem().unwrap().to_str().unwrap(),
       quiet,
       installed,
       None,
-    )
-  })
+    )? || found;
+    Ok(())
+  })?;
+
+  if !found {
+    std::process::exit(1);
+  }
+
+  Ok(())
 }
 
 fn query_files_pattern(
@@ -83,17 +91,25 @@ fn query_files_pattern(
   } else {
     pattern
   };
+  let mut found = false;
   files::foreach_database(|path| {
     let plocate = files::Plocate::new(&path, p, false, !pattern.contains('/'))?;
-    output_plocate(
+    found = output_plocate(
       &mut stdout,
       plocate,
       Path::new(&path).file_stem().unwrap().to_str().unwrap(),
       quiet,
       installed,
       validating_path,
-    )
-  })
+    )? || found;
+    Ok(())
+  })?;
+
+  if !found {
+    std::process::exit(1);
+  }
+
+  Ok(())
 }
 
 fn output_plocate(
@@ -103,8 +119,9 @@ fn output_plocate(
   quiet: bool,
   installed: &InstalledPackages,
   validating_path: Option<&str>,
-) -> IoResult<()> {
+) -> IoResult<bool> {
   let mut last_pkgname = String::new();
+  let mut found = false;
   for pf in plocate {
     let pf = pf?;
     let pkgname = pf.pkgname();
@@ -159,6 +176,7 @@ fn output_plocate(
       last_pkgname.clear();
       last_pkgname.push_str(pkgname)
     }
+    found = true;
   }
-  Ok(())
+  Ok(found)
 }

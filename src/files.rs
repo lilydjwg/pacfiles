@@ -41,8 +41,9 @@ impl Plocate {
       cmd.arg("-b");
     }
     let mut process = cmd
-      .args(["-d", db, "--", pattern])
+      .args(["-d", db, "-N", "--", pattern])
       .stdout(Stdio::piped())
+      .stderr(Stdio::null())
       .spawn()?;
     let bufreader = BufReader::new(process.stdout.take().unwrap());
     Ok(Plocate { process, bufreader })
