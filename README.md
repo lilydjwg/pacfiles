@@ -37,6 +37,8 @@ Options:
 
 It tries to output in the same format as pacman.
 
+You need to run `pacfiles -Fy` to update its databases.
+
 Performance
 ----
 
