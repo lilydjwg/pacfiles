@@ -63,7 +63,7 @@ fn main() -> eyre::Result<()> {
   if args.refresh > 0 {
     build::refresh(args.refresh == 2)?;
   } else if args.list {
-    list::list_packages(&args.query)?;
+    list::list_packages(&args.query, args.quiet)?;
   }
 
   Ok(())
