@@ -4,6 +4,8 @@ version = "0.2.2"
 edition = "2024"
 description = "A pacman -F alternative that runs blazingly fast"
 license = "GPL-2.0-or-later"
+repository = "https://github.com/lilydjwg/pacfiles"
+categories = ["command-line-utilities"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
