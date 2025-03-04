@@ -1,7 +1,9 @@
 use std::process::{Command, Stdio, Child, ChildStdout};
 use std::io::{BufReader, BufRead, Result as IoResult};
+use std::ffi::OsStr;
+use std::path::Path;
 
-use tracing::error;
+use tracing::{debug, error};
 
 pub struct Plocate {
   process: Child,
@@ -15,8 +17,16 @@ pub struct PackageFile {
 }
 
 impl Plocate {
-  pub fn new(db: &str, pattern: &str) -> IoResult<Self> {
-    let mut process = Command::new("plocate")
+  pub fn new(db: &str, pattern: &str, regex: bool, basename: bool) -> IoResult<Self> {
+    debug!("Plocate::new({db}, {pattern}, {regex}, {basename}");
+    let mut cmd = Command::new("plocate");
+    if regex {
+      cmd.arg("--regex");
+    }
+    if basename {
+      cmd.arg("-b");
+    }
+    let mut process = cmd
       .args(["-d", db, "--", pattern])
       .stdout(Stdio::piped())
       .spawn()?;
@@ -60,6 +70,7 @@ impl PackageFile {
     let (pkgpart, _filepath) = line.split_once('/').unwrap();
     let filepath_start = pkgpart.len() + 1;
 
+    debug!("line: {}", line);
     let mut it = pkgpart.rsplitn(3, '-');
     it.next().unwrap(); // pkgrel
     it.next().unwrap(); // pkgver
@@ -91,4 +102,18 @@ mod test {
     assert_eq!(pf.version(), "1:070224-6");
     assert_eq!(pf.path(), "usr/bin/vi");
   }
+}
+
+pub fn foreach_database(mut f: impl FnMut(&Path) -> IoResult<()>) -> IoResult<()> {
+  for entry in std::fs::read_dir("/var/lib/pacman/sync")? {
+    let entry = entry?;
+    let path = entry.path();
+
+    if path.extension() != Some(OsStr::new("pacfiles")) {
+      continue;
+    }
+
+    f(&path)?;
+  }
+  Ok(())
 }

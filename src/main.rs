@@ -6,7 +6,7 @@ use clap::{Parser, CommandFactory};
 mod build;
 mod list;
 mod files;
-// mod query_files;
+mod query_files;
 
 #[derive(clap::Parser)]
 #[command(version, about)]
@@ -64,6 +64,8 @@ fn main() -> eyre::Result<()> {
     build::refresh(args.refresh == 2)?;
   } else if args.list {
     list::list_packages(&args.query, args.quiet)?;
+  } else {
+    query_files::query_files(&args.query, args.regex, args.quiet)?;
   }
 
   Ok(())

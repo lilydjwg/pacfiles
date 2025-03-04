@@ -1,6 +1,2 @@
 * query
-  * no-'/' -> -b; different display format
-  * exact search
-    * put first char in [ ] (unless it's [)
-  * regex search
   * installed marker

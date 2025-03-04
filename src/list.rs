@@ -1,12 +1,10 @@
 use std::io::{stdout, StdoutLock, Write, Result as IoResult};
-use std::ffi::OsStr;
 
-use eyre::Result;
 use nu_ansi_term::Style;
 
 use crate::files;
 
-pub fn list_packages(packages: &[String], quiet: bool) -> Result<()> {
+pub fn list_packages(packages: &[String], quiet: bool) -> IoResult<()> {
   for pkg in packages {
     let (repo, pkgname) = if let Some((r, pkgname)) = pkg.split_once('/') {
       (Some(r), pkgname)
@@ -23,20 +21,13 @@ fn list_repo_package_files(repo: Option<&str>, pkgname: &str, quiet: bool) -> Io
   let mut stdout = stdout().lock();
   if let Some(repo) = repo {
     let path = format!("/var/lib/pacman/sync/{}.pacfiles", repo);
-    let plocate = files::Plocate::new(&path, &pattern)?;
+    let plocate = files::Plocate::new(&path, &pattern, false, false)?;
     output_plocate(&mut stdout, plocate, pkgname, quiet)?;
   } else {
-    for entry in std::fs::read_dir("/var/lib/pacman/sync")? {
-      let entry = entry?;
-      let path = entry.path();
-
-      if path.extension() != Some(OsStr::new("pacfiles")) {
-        continue;
-      }
-
-      let plocate = files::Plocate::new(path.to_str().unwrap(), &pattern)?;
-      output_plocate(&mut stdout, plocate, pkgname, quiet)?;
-    }
+    files::foreach_database(|path| {
+      let plocate = files::Plocate::new(path.to_str().unwrap(), &pattern, false, false)?;
+      output_plocate(&mut stdout, plocate, pkgname, quiet)
+    })?;
   }
   Ok(())
 }

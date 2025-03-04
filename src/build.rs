@@ -72,6 +72,7 @@ fn process_repo(path: PathBuf, force: bool) -> Result<()> {
       match a {
         ArchiveContents::StartOfEntry(name, _) => {
           if !name.ends_with("/files") {
+            is_files = false;
             continue;
           }
           pkg += name.split_once('/').unwrap().0;
