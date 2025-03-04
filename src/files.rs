@@ -1,7 +1,5 @@
 use std::process::{Command, Stdio, Child, ChildStdout};
 use std::io::{BufReader, BufRead, Result as IoResult};
-use std::ffi::OsStr;
-use std::path::Path;
 
 use tracing::{debug, error};
 
@@ -104,16 +102,15 @@ mod test {
   }
 }
 
-pub fn foreach_database(mut f: impl FnMut(&Path) -> IoResult<()>) -> IoResult<()> {
-  for entry in std::fs::read_dir("/var/lib/pacman/sync")? {
-    let entry = entry?;
-    let path = entry.path();
-
-    if path.extension() != Some(OsStr::new("pacfiles")) {
-      continue;
-    }
-
-    f(&path)?;
+pub fn foreach_database(mut f: impl FnMut(String) -> IoResult<()>) -> IoResult<()> {
+  let output = Command::new("pacman-conf")
+    .arg("-l")
+    .stdout(Stdio::piped())
+    .output()?;
+  let repos = String::from_utf8(output.stdout).unwrap();
+  for repo in repos.split_terminator('\n') {
+    let path = format!("/var/lib/pacman/sync/{repo}.pacfiles");
+    f(path)?;
   }
   Ok(())
 }

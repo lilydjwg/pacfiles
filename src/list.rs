@@ -25,7 +25,7 @@ fn list_repo_package_files(repo: Option<&str>, pkgname: &str, quiet: bool) -> Io
     output_plocate(&mut stdout, plocate, pkgname, quiet)?;
   } else {
     files::foreach_database(|path| {
-      let plocate = files::Plocate::new(path.to_str().unwrap(), &pattern, false, false)?;
+      let plocate = files::Plocate::new(&path, &pattern, false, false)?;
       output_plocate(&mut stdout, plocate, pkgname, quiet)
     })?;
   }

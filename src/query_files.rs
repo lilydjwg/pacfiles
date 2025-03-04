@@ -1,4 +1,5 @@
 use std::io::{stdout, StdoutLock, Write, Result as IoResult};
+use std::path::Path;
 use std::borrow::Cow;
 
 use nu_ansi_term::{Style, Color};
@@ -25,11 +26,11 @@ fn query_files_regex(
 ) -> IoResult<()> {
   let mut stdout = stdout().lock();
   files::foreach_database(|path| {
-    let plocate = files::Plocate::new(path.to_str().unwrap(), pattern, true, !pattern.contains('/'))?;
+    let plocate = files::Plocate::new(&path, pattern, true, !pattern.contains('/'))?;
     output_plocate(
       &mut stdout,
       plocate,
-      path.file_stem().unwrap().to_str().unwrap(),
+      Path::new(&path).file_stem().unwrap().to_str().unwrap(),
       quiet,
       installed,
     )
@@ -53,11 +54,11 @@ fn query_files_pattern(
     pattern
   };
   files::foreach_database(|path| {
-    let plocate = files::Plocate::new(path.to_str().unwrap(), p, false, !pattern.contains('/'))?;
+    let plocate = files::Plocate::new(&path, p, false, !pattern.contains('/'))?;
     output_plocate(
       &mut stdout,
       plocate,
-      path.file_stem().unwrap().to_str().unwrap(),
+      Path::new(&path).file_stem().unwrap().to_str().unwrap(),
       quiet,
       installed,
     )
