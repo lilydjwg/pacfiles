@@ -1,7 +1,7 @@
 * query
-  * exact filename search
-  * substring search in filenames
-  * substring search in whole paths
-  * regex search in filenames
-  * regex search in whole paths
+  * no-'/' -> -b; different display format
+  * exact search
+    * put first char in [ ] (unless it's [)
+  * regex search
+  * installed marker
   * list package files

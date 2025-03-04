@@ -22,13 +22,17 @@ struct Args {
   /// Interpret each query as a Rust regular expression.
   regex: bool,
 
+  #[arg(short, long)]
+  /// Do not output colors and file paths
+  quiet: bool,
+
   #[arg(short='y', long, action = clap::ArgAction::Count)]
   /// Refresh & rebuild databases; give twice to force
   refresh: u8,
 
   #[arg(value_name="QUERY")]
-  /// the query
-  queries: Vec<String>,
+  /// The query; unlike pacman, globs (*?[]) are supported in non-regex mode
+  query: String,
 }
 
 fn main() -> eyre::Result<()> {
