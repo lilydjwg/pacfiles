@@ -7,6 +7,7 @@ mod build;
 mod list;
 mod files;
 mod query_files;
+mod installed;
 
 #[derive(clap::Parser)]
 #[command(version, about)]
