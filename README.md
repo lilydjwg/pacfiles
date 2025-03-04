@@ -1,7 +1,7 @@
 pacfiles
 ====
 
-pacfiles is a `pacman -F` alternative that runs blazingly fast. It archieves this by using [plocate](https://plocate.sesse.net/) databases.
+pacfiles is a `pacman -F` alternative that runs blazingly fast. It achieves this by using [plocate](https://plocate.sesse.net/) databases.
 
 Installation
 ----
