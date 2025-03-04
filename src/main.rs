@@ -4,7 +4,8 @@ use tracing_subscriber::EnvFilter;
 use clap::{Parser, CommandFactory};
 
 mod build;
-// mod list;
+mod list;
+mod files;
 // mod query_files;
 
 #[derive(clap::Parser)]
@@ -32,7 +33,7 @@ struct Args {
 
   #[arg(value_name="QUERY")]
   /// The query; unlike pacman, globs (*?[]) are supported in non-regex mode
-  query: String,
+  query: Vec<String>,
 }
 
 fn main() -> eyre::Result<()> {
@@ -61,6 +62,8 @@ fn main() -> eyre::Result<()> {
 
   if args.refresh > 0 {
     build::refresh(args.refresh == 2)?;
+  } else if args.list {
+    list::list_packages(&args.query)?;
   }
 
   Ok(())
