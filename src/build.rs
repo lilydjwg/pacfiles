@@ -22,7 +22,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::io::{BufReader, Write, BufWriter, ErrorKind};
 
 use eyre::Result;
-use tracing::{span, info, error, Level};
+use tracing::{info, error};
 use compress_tools::ArchiveContents;
 
 pub fn refresh(force: bool) -> Result<()> {
@@ -52,9 +52,8 @@ pub fn refresh(force: bool) -> Result<()> {
 fn process_repo(path: PathBuf, force: bool) -> Result<()> {
   let repo_name = path.file_stem().expect("unexpected .files filename")
     .to_str().expect("non-utf-8 .files filename?");
-  let span = span!(Level::INFO, "process_repo", repo = %repo_name);
-  let _guard = span.enter();
-  info!("start processing");
+  print!("plocate-build {}.pacfiles ...", repo_name);
+  let _ = std::io::stdout().flush();
 
   let target_path = path.with_extension("pacfiles");
 
@@ -63,7 +62,7 @@ fn process_repo(path: PathBuf, force: bool) -> Result<()> {
       Ok(target_stat) => {
         let files_mtime = path.metadata()?.modified()?;
         if target_stat.modified()? > files_mtime {
-          info!("database fresh");
+          println!(" fresh.");
           return Ok(());
         }
       }
@@ -136,7 +135,7 @@ fn process_repo(path: PathBuf, force: bool) -> Result<()> {
 
   let perm = fs::Permissions::from_mode(0o644);
   fs::set_permissions(target_path, perm)?;
-  info!("done");
+  println!(" done.");
 
   Ok(())
 }
