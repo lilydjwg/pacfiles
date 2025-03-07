@@ -26,13 +26,14 @@ Arguments:
   [QUERY]...  The query; unlike pacman, globs (*?[]) are supported in non-regex mode
 
 Options:
-  -F, --files       ignored
-  -l, --list        List the files owned by the queried package
-  -x, --regex       Interpret each query as a POSIX extended regular expression
-  -q, --quiet       Do not output colors and file paths
-  -y, --refresh...  Refresh & rebuild databases; give twice to force
-  -h, --help        Print help
-  -V, --version     Print version
+  -F, --files         ignored
+  -l, --list          List the files owned by the queried package
+  -x, --regex         Interpret each query as a POSIX extended regular expression
+  -q, --quiet         Do not output colors and file paths
+  -y, --refresh...    Refresh & rebuild databases; give twice to force
+      --update-db...  rebuild databases only without refreshing; give twice to force
+  -h, --help          Print help
+  -V, --version       Print version
 ```
 
 It tries to output in the same format as pacman.
