@@ -41,9 +41,10 @@ fn query_files_regex(
   installed: &InstalledPackages,
 ) -> IoResult<()> {
   let mut stdout = stdout().lock();
+  let is_fullpath = pattern.contains('/');
   let mut found = false;
   files::foreach_database(|path| {
-    let plocate = files::Plocate::new(&path, pattern, true, !pattern.contains('/'))?;
+    let plocate = files::Plocate::new(&path, pattern, true, !is_fullpath)?;
     found = output_plocate(
       &mut stdout,
       plocate,
@@ -93,7 +94,7 @@ fn query_files_pattern(
   };
   let mut found = false;
   files::foreach_database(|path| {
-    let plocate = files::Plocate::new(&path, p, false, !pattern.contains('/'))?;
+    let plocate = files::Plocate::new(&path, p, false, !is_fullpath)?;
     found = output_plocate(
       &mut stdout,
       plocate,
