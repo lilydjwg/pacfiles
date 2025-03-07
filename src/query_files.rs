@@ -83,10 +83,14 @@ fn query_files_pattern(
     modified_pattern.push_str("*/");
     if let Some(stripped) = pattern.strip_prefix('/') {
       modified_pattern.push_str(stripped);
-      validating_path = Some(stripped);
+      if !is_glob {
+        validating_path = Some(stripped);
+      }
     } else {
       modified_pattern.push_str(pattern);
-      validating_path = Some(pattern);
+      if !is_glob {
+        validating_path = Some(pattern);
+      }
     }
     modified_pattern.as_str()
   } else {
