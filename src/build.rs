@@ -35,6 +35,11 @@ pub fn refresh(force: bool) -> Result<()> {
     return Err(eyre::eyre!("pacman exits with error: {st}"));
   }
 
+  update_db(force)?;
+  Ok(())
+}
+
+pub fn update_db(force: bool) -> Result<()> {
   for entry in std::fs::read_dir("/var/lib/pacman/sync")? {
     let entry = entry?;
     let path = entry.path();

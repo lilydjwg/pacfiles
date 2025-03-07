@@ -48,6 +48,10 @@ struct Args {
   /// Refresh & rebuild databases; give twice to force
   refresh: u8,
 
+  #[arg(long, action = clap::ArgAction::Count)]
+  /// rebuild databases only without refreshing; give twice to force
+  update_db: u8,
+
   #[arg(value_name="QUERY")]
   /// The query; unlike pacman, globs (*?[]) are supported in non-regex mode
   query: Vec<String>,
@@ -76,9 +80,16 @@ fn main() -> eyre::Result<()> {
       .error(clap::error::ErrorKind::InvalidValue, "refresh can give twice at most")
       .exit();
   }
+  if args.update_db > 2 {
+    Args::command()
+      .error(clap::error::ErrorKind::InvalidValue, "update-db can give twice at most")
+      .exit();
+  }
 
   if args.refresh > 0 {
     build::refresh(args.refresh == 2)?;
+  } else if args.update_db > 0 {
+    build::update_db(args.update_db == 2)?;
   } else if args.list {
     list::list_packages(&args.query, args.quiet)?;
   } else {
