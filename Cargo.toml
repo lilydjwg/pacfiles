@@ -1,6 +1,6 @@
 [package]
 name = "pacfiles"
-version = "0.2.3"
+version = "0.2.4"
 edition = "2024"
 description = "A pacman -F alternative that runs blazingly fast"
 license = "GPL-2.0-or-later"

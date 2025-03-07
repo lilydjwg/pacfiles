@@ -37,7 +37,7 @@ fn list_repo_package_files(pkg: &str, quiet: bool) -> IoResult<bool> {
   let (repo, pkgname) = if let Some((r, pkgname)) = pkg.split_once('/') {
     (Some(r), pkgname)
   } else {
-    (None, &pkg[..])
+    (None, pkg)
   };
 
   let mut found = false;

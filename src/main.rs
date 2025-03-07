@@ -49,7 +49,7 @@ struct Args {
   refresh: u8,
 
   #[arg(long, action = clap::ArgAction::Count)]
-  /// rebuild databases only without refreshing; give twice to force
+  /// Rebuild databases only without refreshing; give twice to force
   update_db: u8,
 
   #[arg(value_name="QUERY")]
