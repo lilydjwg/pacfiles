@@ -85,6 +85,11 @@ fn main() -> eyre::Result<()> {
       .error(clap::error::ErrorKind::InvalidValue, "update-db can give twice at most")
       .exit();
   }
+  if args.query.is_empty() {
+    Args::command()
+      .error(clap::error::ErrorKind::MissingRequiredArgument, "no query specified")
+      .exit();
+  }
 
   if args.refresh > 0 {
     build::refresh(args.refresh == 2)?;
