@@ -1,6 +1,6 @@
 [package]
 name = "pacfiles"
-version = "0.2.5"
+version = "0.2.6"
 edition = "2024"
 description = "A pacman -F alternative that runs blazingly fast"
 license = "GPL-2.0-or-later"
@@ -10,11 +10,11 @@ categories = ["command-line-utilities"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = { version = "4.5.32", features = ["derive"] }
+clap = { version = "4.5.34", features = ["derive"] }
 eyre = "0.6.12"
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", default-features = false, features = ["env-filter", "fmt", "ansi", "chrono"] }
 
 compress-tools = "0.15.1"
 nu-ansi-term = "0.50.1"
-tempfile = "3.18.0"
+tempfile = "3.19.1"
