@@ -68,6 +68,10 @@ fn query_files_pattern(
   quiet: bool,
   installed: &InstalledPackages,
 ) -> IoResult<()> {
+  if pattern.is_empty() {
+    return Ok(());
+  }
+
   let mut stdout = stdout().lock();
   let is_fullpath = pattern.contains('/');
   let is_glob = pattern.contains(['*', '?', '[', ']']);
