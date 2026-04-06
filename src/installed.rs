@@ -16,15 +16,17 @@
 
 use std::collections::HashMap;
 use std::io::Result as IoResult;
+use std::path::Path;
 
 pub struct InstalledPackages {
   packages: HashMap<String, String>,
 }
 
 impl InstalledPackages {
-  pub fn new() -> IoResult<Self> {
+  pub fn new(dbpath: &str) -> IoResult<Self> {
     let mut packages = HashMap::new();
-    for entry in std::fs::read_dir("/var/lib/pacman/local")? {
+    let path = Path::new(dbpath).join("local");
+    for entry in std::fs::read_dir(path)? {
       let entry = entry?;
       let path = entry.path();
 

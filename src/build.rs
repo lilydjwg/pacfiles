@@ -16,7 +16,7 @@
 
 use std::ffi::OsStr;
 use std::process::Command;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::fs::{File, self};
 use std::os::unix::fs::PermissionsExt;
 use std::io::{BufReader, Write, BufWriter, ErrorKind};
@@ -25,33 +25,39 @@ use eyre::Result;
 use tracing::{info, error};
 use compress_tools::ArchiveContents;
 
-pub fn refresh(force: bool) -> Result<()> {
-  info!("running pacman command");
-  let mut child = Command::new("pacman")
-    .arg(if force { "-Fyy" } else { "-Fy" })
-    .spawn()?;
-  let st = child.wait()?;
-  if !st.success() {
-    return Err(eyre::eyre!("pacman exits with error: {st}"));
-  }
-
-  update_db(force)?;
-  Ok(())
-}
-
-pub fn update_db(force: bool) -> Result<()> {
-  for entry in std::fs::read_dir("/var/lib/pacman/sync")? {
-    let entry = entry?;
-    let path = entry.path();
-
-    if path.extension() != Some(OsStr::new("files")) {
-      continue;
+impl crate::Database {
+  pub fn refresh(&self, force: bool) -> Result<()> {
+    info!("running pacman command");
+    let mut child = Command::new("pacman")
+      .args([
+        "--dbpath", &self.dbpath,
+        if force { "-Fyy" } else { "-Fy" }
+      ])
+      .spawn()?;
+    let st = child.wait()?;
+    if !st.success() {
+      return Err(eyre::eyre!("pacman exits with error: {st}"));
     }
 
-    process_repo(path, force)?;
+    self.update_db(force)?;
+    Ok(())
   }
 
-  Ok(())
+  pub fn update_db(&self, force: bool) -> Result<()> {
+    let syncdir = Path::new(&self.dbpath).join("sync");
+    for entry in std::fs::read_dir(&syncdir)? {
+      let entry = entry?;
+      let path = entry.path();
+
+      if path.extension() != Some(OsStr::new("files")) {
+        continue;
+      }
+
+      process_repo(path, force)?;
+    }
+
+    Ok(())
+  }
 }
 
 fn process_repo(path: PathBuf, force: bool) -> Result<()> {

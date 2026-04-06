@@ -119,14 +119,16 @@ mod test {
   }
 }
 
-pub fn foreach_database(mut f: impl FnMut(String) -> IoResult<()>) -> IoResult<()> {
+pub fn foreach_database(
+  dbpath: &str, mut f: impl FnMut(String) -> IoResult<()>,
+) -> IoResult<()> {
   let output = Command::new("pacman-conf")
     .arg("-l")
     .stdout(Stdio::piped())
     .output()?;
   let repos = String::from_utf8(output.stdout).unwrap();
   for repo in repos.split_terminator('\n') {
-    let path = format!("/var/lib/pacman/sync/{repo}.pacfiles");
+    let path = format!("{dbpath}/sync/{repo}.pacfiles");
     f(path)?;
   }
   Ok(())

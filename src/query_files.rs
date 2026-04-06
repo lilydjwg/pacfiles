@@ -23,102 +23,108 @@ use nu_ansi_term::{Style, Color};
 use crate::files;
 use crate::installed::InstalledPackages;
 
-pub fn query_files(queries: &[String], regex: bool, quiet: bool) -> IoResult<()> {
-  let installed = InstalledPackages::new()?;
-  for query in queries {
-    if regex {
-      query_files_regex(query, quiet, &installed)?;
-    } else {
-      query_files_pattern(query, quiet, &installed)?;
-    }
-  }
-  Ok(())
-}
-
-fn query_files_regex(
-  pattern: &str,
-  quiet: bool,
-  installed: &InstalledPackages,
-) -> IoResult<()> {
-  let mut stdout = stdout().lock();
-  let is_fullpath = pattern.contains('/');
-  let mut found = false;
-  files::foreach_database(|path| {
-    let plocate = files::Plocate::new(&path, pattern, true, !is_fullpath)?;
-    found = output_plocate(
-      &mut stdout,
-      plocate,
-      Path::new(&path).file_stem().unwrap().to_str().unwrap(),
-      quiet,
-      installed,
-      None,
-    )? || found;
-    Ok(())
-  })?;
-
-  if !found {
-    std::process::exit(1);
-  }
-
-  Ok(())
-}
-
-fn query_files_pattern(
-  pattern: &str,
-  quiet: bool,
-  installed: &InstalledPackages,
-) -> IoResult<()> {
-  if pattern.is_empty() {
-    return Ok(());
-  }
-
-  let mut stdout = stdout().lock();
-  let is_fullpath = pattern.contains('/');
-  let is_glob = pattern.contains(['*', '?', '[', ']']);
-  let mut validating_path = None;
-  let mut modified_pattern = String::new();
-  let p = if !is_fullpath && !is_glob {
-    modified_pattern.push('[');
-    modified_pattern.push(pattern.chars().next().unwrap());
-    modified_pattern.push(']');
-    modified_pattern.push_str(&pattern[1..]);
-    modified_pattern.as_str()
-  } else if is_fullpath {
-    modified_pattern.push_str("*/");
-    if let Some(stripped) = pattern.strip_prefix('/') {
-      modified_pattern.push_str(stripped);
-      if !is_glob {
-        validating_path = Some(stripped);
-      }
-    } else {
-      modified_pattern.push_str(pattern);
-      if !is_glob {
-        validating_path = Some(pattern);
+impl crate::Database {
+  pub fn query_files(
+    &self, queries: &[String], regex: bool, quiet: bool,
+  ) -> IoResult<()> {
+    let installed = InstalledPackages::new(&self.dbpath)?;
+    for query in queries {
+      if regex {
+        self.query_files_regex(query, quiet, &installed)?;
+      } else {
+        self.query_files_pattern(query, quiet, &installed)?;
       }
     }
-    modified_pattern.as_str()
-  } else {
-    pattern
-  };
-  let mut found = false;
-  files::foreach_database(|path| {
-    let plocate = files::Plocate::new(&path, p, false, !is_fullpath)?;
-    found = output_plocate(
-      &mut stdout,
-      plocate,
-      Path::new(&path).file_stem().unwrap().to_str().unwrap(),
-      quiet,
-      installed,
-      validating_path,
-    )? || found;
     Ok(())
-  })?;
-
-  if !found {
-    std::process::exit(1);
   }
 
-  Ok(())
+  fn query_files_regex(
+    &self,
+    pattern: &str,
+    quiet: bool,
+    installed: &InstalledPackages,
+  ) -> IoResult<()> {
+    let mut stdout = stdout().lock();
+    let is_fullpath = pattern.contains('/');
+    let mut found = false;
+    files::foreach_database(&self.dbpath, |path| {
+      let plocate = files::Plocate::new(&path, pattern, true, !is_fullpath)?;
+      found = output_plocate(
+        &mut stdout,
+        plocate,
+        Path::new(&path).file_stem().unwrap().to_str().unwrap(),
+        quiet,
+        installed,
+        None,
+      )? || found;
+      Ok(())
+    })?;
+
+    if !found {
+      std::process::exit(1);
+    }
+
+    Ok(())
+  }
+
+  fn query_files_pattern(
+    &self,
+    pattern: &str,
+    quiet: bool,
+    installed: &InstalledPackages,
+  ) -> IoResult<()> {
+    if pattern.is_empty() {
+      return Ok(());
+    }
+
+    let mut stdout = stdout().lock();
+    let is_fullpath = pattern.contains('/');
+    let is_glob = pattern.contains(['*', '?', '[', ']']);
+    let mut validating_path = None;
+    let mut modified_pattern = String::new();
+    let p = if !is_fullpath && !is_glob {
+      modified_pattern.push('[');
+      modified_pattern.push(pattern.chars().next().unwrap());
+      modified_pattern.push(']');
+      modified_pattern.push_str(&pattern[1..]);
+      modified_pattern.as_str()
+    } else if is_fullpath {
+      modified_pattern.push_str("*/");
+      if let Some(stripped) = pattern.strip_prefix('/') {
+        modified_pattern.push_str(stripped);
+        if !is_glob {
+          validating_path = Some(stripped);
+        }
+      } else {
+        modified_pattern.push_str(pattern);
+        if !is_glob {
+          validating_path = Some(pattern);
+        }
+      }
+      modified_pattern.as_str()
+    } else {
+      pattern
+    };
+    let mut found = false;
+    files::foreach_database(&self.dbpath, |path| {
+      let plocate = files::Plocate::new(&path, p, false, !is_fullpath)?;
+      found = output_plocate(
+        &mut stdout,
+        plocate,
+        Path::new(&path).file_stem().unwrap().to_str().unwrap(),
+        quiet,
+        installed,
+        validating_path,
+      )? || found;
+      Ok(())
+    })?;
+
+    if !found {
+      std::process::exit(1);
+    }
+
+    Ok(())
+  }
 }
 
 fn output_plocate(
@@ -139,10 +145,8 @@ fn output_plocate(
       continue;
     }
     let path = pf.path();
-    if let Some(p) = validating_path {
-      if !path.starts_with(p) {
-        continue;
-      }
+    if let Some(p) = validating_path && !path.starts_with(p) {
+      continue;
     }
     if quiet {
       writeln!(stdout, "{}/{}", repo, pkgname)?;

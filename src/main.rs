@@ -36,6 +36,10 @@ struct Args {
   /// List the files owned by the queried package.
   list: bool,
 
+  #[arg(short='b', long)]
+  /// Specify an alternative database location (the default is /var/lib/pacman).
+  dbpath: Option<String>,
+
   #[arg(short='x', long)]
   /// Interpret each query as a POSIX extended regular expression.
   regex: bool,
@@ -86,20 +90,33 @@ fn main() -> eyre::Result<()> {
       .exit();
   }
 
+  let db = Database::new(args.dbpath);
+
   if args.refresh > 0 {
-    build::refresh(args.refresh == 2)?;
+    db.refresh(args.refresh == 2)?;
   } else if args.update_db > 0 {
-    build::update_db(args.update_db == 2)?;
+    db.update_db(args.update_db == 2)?;
   } else if args.query.is_empty() {
     Args::command()
       .error(clap::error::ErrorKind::MissingRequiredArgument, "no query specified")
       .exit();
   } else if args.list {
-    list::list_packages(&args.query, args.quiet)?;
+    db.list_packages(&args.query, args.quiet)?;
   } else {
-    query_files::query_files(&args.query, args.regex, args.quiet)?;
+    db.query_files(&args.query, args.regex, args.quiet)?;
   }
 
   Ok(())
 }
 
+struct Database {
+  dbpath: String,
+}
+
+impl Database {
+  fn new(dbpath: Option<String>) -> Self {
+    Self {
+      dbpath: dbpath.unwrap_or_else(|| String::from("/var/lib/pacman")),
+    }
+  }
+}

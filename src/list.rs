@@ -20,47 +20,53 @@ use nu_ansi_term::{Style, Color};
 
 use crate::files;
 
-pub fn list_packages(packages: &[String], quiet: bool) -> IoResult<()> {
-  let mut found = false;
-  for pkg in packages {
-    found = list_repo_package_files(pkg, quiet)? || found;
+impl crate::Database {
+  pub fn list_packages(
+    &self, packages: &[String], quiet: bool,
+  ) -> IoResult<()> {
+    let mut found = false;
+    for pkg in packages {
+      found = self.list_repo_package_files(pkg, quiet)? || found;
+    }
+
+    if !found {
+      std::process::exit(1);
+    }
+
+    Ok(())
   }
 
-  if !found {
-    std::process::exit(1);
-  }
+  fn list_repo_package_files(
+    &self, pkg: &str, quiet: bool,
+  ) -> IoResult<bool> {
+    let (repo, pkgname) = if let Some((r, pkgname)) = pkg.split_once('/') {
+      (Some(r), pkgname)
+    } else {
+      (None, pkg)
+    };
 
-  Ok(())
-}
-
-fn list_repo_package_files(pkg: &str, quiet: bool) -> IoResult<bool> {
-  let (repo, pkgname) = if let Some((r, pkgname)) = pkg.split_once('/') {
-    (Some(r), pkgname)
-  } else {
-    (None, pkg)
-  };
-
-  let mut found = false;
-  let pattern = format!("{}-*", pkgname);
-  let mut stdout = stdout().lock();
-  if let Some(repo) = repo {
-    let path = format!("/var/lib/pacman/sync/{}.pacfiles", repo);
-    let plocate = files::Plocate::new(&path, &pattern, false, false)?;
-    found = output_plocate(&mut stdout, plocate, pkgname, quiet)? || found;
-  } else {
-    files::foreach_database(|path| {
+    let mut found = false;
+    let pattern = format!("{}-*", pkgname);
+    let mut stdout = stdout().lock();
+    if let Some(repo) = repo {
+      let path = format!("{}/sync/{}.pacfiles", self.dbpath, repo);
       let plocate = files::Plocate::new(&path, &pattern, false, false)?;
       found = output_plocate(&mut stdout, plocate, pkgname, quiet)? || found;
-      Ok(())
-    })?;
+    } else {
+      files::foreach_database(&self.dbpath, |path| {
+        let plocate = files::Plocate::new(&path, &pattern, false, false)?;
+        found = output_plocate(&mut stdout, plocate, pkgname, quiet)? || found;
+        Ok(())
+      })?;
+    }
+    if !found {
+      eprintln!("{} package '{}' was not found",
+        Color::Red.bold().paint("error:"),
+        pkg,
+      );
+    }
+    Ok(found)
   }
-  if !found {
-    eprintln!("{} package '{}' was not found",
-      Color::Red.bold().paint("error:"),
-      pkg,
-    );
-  }
-  Ok(found)
 }
 
 fn output_plocate(
